@@ -328,9 +328,11 @@
 
 <div class="form-actions" style="margin-bottom: 10px;">
   <button class="btn btn-secondary" id="btn-export">导出 CSV</button>
+  <button class="btn btn-secondary" id="btn-import">📥 导入 CSV</button>
   <button class="btn btn-secondary" id="btn-backup">💾 备份数据</button>
   <button class="btn btn-secondary" id="btn-restore">📥 恢复数据</button>
   <input type="file" id="restore-file" accept=".json" style="display:none">
+  <input type="file" id="import-file" accept=".csv,.txt" style="display:none">
   <button class="btn btn-ghost" id="btn-clear">清空全部数据</button>
   <span class="hint" id="save-msg"></span>
 </div>
@@ -987,6 +989,129 @@
     flash("✅ 已导出 CSV");
   });
 
+  /* ---------- CSV 导入（用于从旧版本迁移数据） ---------- */
+  document.getElementById("btn-import").addEventListener("click", function () {
+    document.getElementById("import-file").click();
+  });
+
+  document.getElementById("import-file").addEventListener("change", function () {
+    var file = this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var text = e.target.result;
+        // 去掉 BOM
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        var lines = text.split(/\r?\n/).filter(function (l) { return l.trim() !== ""; });
+        if (lines.length < 2) { flash("⚠️ CSV 文件为空或没有数据行"); return; }
+
+        // 解析表头（兼容带引号的列名）
+        function parseRow(line) {
+          var row = [], cur = "", inQ = false;
+          for (var i = 0; i < line.length; i++) {
+            var ch = line[i];
+            if (inQ) {
+              if (ch === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+              else cur += ch;
+            } else {
+              if (ch === '"') inQ = true;
+              else if (ch === ",") { row.push(cur); cur = ""; }
+              else cur += ch;
+            }
+          }
+          row.push(cur);
+          return row;
+        }
+
+        var header = parseRow(lines[0]).map(function (h) { return h.trim(); });
+        var idx = {};
+        header.forEach(function (h, i) {
+          // 兼容各种表头写法
+          if (h.indexOf("日期") !== -1) idx.date = i;
+          else if (h.indexOf("城市") !== -1) idx.city = i;
+          else if (h.indexOf("账户") !== -1) idx.account = i;
+          else if (h.indexOf("购入张数") !== -1 || h.indexOf("张数") !== -1) idx.count = i;
+          else if (h.indexOf("购入成本") !== -1 || (h.indexOf("成本") !== -1 && h.indexOf("购入") !== -1)) idx.cost = i;
+          else if (h.indexOf("发票状态") !== -1) idx.status = i;
+          else if (h.indexOf("中奖奖金") !== -1 || h.indexOf("奖金") !== -1) idx.prize = i;
+          else if (h.indexOf("盈损") !== -1) idx.profit = i;
+          else if (h.indexOf("已上传") !== -1 && h.indexOf("未上传") === -1) idx.uploaded = i;
+          else if (h.indexOf("未上传") !== -1) idx.unuploaded = i;
+          else if (h.indexOf("已抽奖") !== -1 && h.indexOf("待抽奖") === -1) idx.drawn = i;
+          else if (h.indexOf("待抽奖") !== -1) idx.undrawn = i;
+        });
+
+        if (idx.date === undefined || idx.count === undefined) {
+          flash("⚠️ CSV 缺少必需列（日期、购入张数）");
+          return;
+        }
+
+        if (!confirm("确定导入 CSV 吗？会合并到当前数据（共 " + lines.length + " 行数据）。")) return;
+
+        var imported = 0, skipped = 0;
+        for (var i = 1; i < lines.length; i++) {
+          var row = parseRow(lines[i]);
+          var date = (row[idx.date] || "").trim();
+          if (!date) { skipped++; continue; }
+          var count = parseInt(row[idx.count], 10);
+          if (isNaN(count) || count < 0) count = 0;
+
+          var rec = {
+            id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+            date: date,
+            city: idx.city !== undefined ? (row[idx.city] || "").trim() : "",
+            account: idx.account !== undefined && row[idx.account] ? (row[idx.account] || "").trim() : accounts[0],
+            count: count,
+            cost: idx.cost !== undefined ? (parseFloat(row[idx.cost]) || 0) : 0,
+            prize: idx.prize !== undefined ? (parseFloat(row[idx.prize]) || 0) : 0,
+            profit: idx.profit !== undefined && row[idx.profit] !== undefined && String(row[idx.profit]).trim() !== "" ? (parseFloat(row[idx.profit]) || "") : "",
+            status: idx.status !== undefined && row[idx.status] ? (row[idx.status] || "").trim() : "已出票",
+            uploaded: 0,
+            drawn: 0
+          };
+
+          // 已上传张数：优先用 CSV 列，否则按状态推断
+          if (idx.uploaded !== undefined && row[idx.uploaded] !== undefined && String(row[idx.uploaded]).trim() !== "" && String(row[idx.uploaded]).trim() !== "—") {
+            rec.uploaded = Math.max(0, parseInt(row[idx.uploaded], 10) || 0);
+          } else if (idx.unuploaded !== undefined && row[idx.unuploaded] !== undefined && String(row[idx.unuploaded]).trim() !== "" && String(row[idx.unuploaded]).trim() !== "—") {
+            rec.uploaded = count - (parseInt(row[idx.unuploaded], 10) || 0);
+          } else {
+            rec.uploaded = (rec.status === "已上传" || rec.status === "已抽奖") ? count : 0;
+          }
+          if (rec.uploaded > count) rec.uploaded = count;
+          if (rec.uploaded < 0) rec.uploaded = 0;
+
+          // 已抽奖张数：优先用 CSV 列，否则按状态推断
+          if (idx.drawn !== undefined && row[idx.drawn] !== undefined && String(row[idx.drawn]).trim() !== "" && String(row[idx.drawn]).trim() !== "—") {
+            rec.drawn = Math.max(0, parseInt(row[idx.drawn], 10) || 0);
+          } else {
+            rec.drawn = (rec.status === "已抽奖") ? count : 0;
+          }
+          if (rec.drawn > rec.uploaded) rec.drawn = rec.uploaded;
+          if (rec.drawn < 0) rec.drawn = 0;
+
+          // 账户不存在则加进去
+          if (accounts.indexOf(rec.account) === -1) accounts.push(rec.account);
+          rec.status = deriveStatus(rec);
+          records.push(rec);
+          imported++;
+        }
+
+        save();
+        saveAccounts();
+        clearForm();
+        renderAll();
+        renderAccountSelect();
+        flash("✅ 已导入 " + imported + " 条记录" + (skipped > 0 ? "（跳过 " + skipped + " 行空数据）" : ""));
+      } catch (err) {
+        flash("⚠️ CSV 解析失败：" + err.message);
+      }
+    };
+    reader.readAsText(file);
+    this.value = "";
+  });
+
   document.getElementById("btn-backup").addEventListener("click", function () {
     var data = {
       version: 1,
@@ -1074,6 +1199,7 @@
     renderAll();
     flash("已清空");
   });
+
   /* ---------- 账户管理 ---------- */
   function renderAccountSelect() {
     var sel = document.getElementById("account-select");
