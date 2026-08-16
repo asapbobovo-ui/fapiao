@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#e5484d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>发票抽奖记账工具</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎫</text></svg>">
+<style>
+  :root {
+    color-scheme: light;
+    --red: #e5484d;
+    --red-dark: #c93a3f;
+    --gold: #b8860b;
+    --gold-light: #f5d78e;
+    --bg: #faf7f2;
+    --card: #ffffff;
+    --text: #2b2320;
+    --text-sub: #8a7f77;
+    --border: #efe6dc;
+    --green: #2f9e44;
+    --blue: #1d72b8;
+    --orange: #d97b29;
+    --purple: #805ad5;
+    --shadow: 0 1px 3px rgba(120, 90, 60, 0.08), 0 4px 16px rgba(120, 90, 60, 0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  h1 .ticket { font-size: 26px; }
+  .subtitle { color: var(--text-sub); font-size: 13px; margin-bottom: 22px; }
+
+  .account-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+  }
+  .account-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .account-bar select {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+    min-width: 140px;
+  }
+  .account-bar select:focus { outline: 2px solid var(--gold-light); border-color: var(--gold); }
+  .account-hint { font-size: 12px; color: var(--text-sub); margin-left: auto; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+  .reminder-bar {
+    background: #fff1e0;
+    border: 1px solid #f0c89a;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .card .label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
+  .card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card .value.profit-up { color: var(--green); }
+  .card .value.profit-down { color: var(--red); }
+
+  .pending-box {
+    background: #fff8ec;
+    border: 1px solid #f0e0c0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .pending-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .pending-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .pending-detail { margin-top: 12px; border-top: 1px dashed #f0e0c0; padding-top: 10px; }
+  .pd-subtitle { font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 8px; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .detail-table th { background: #fdf3e0; text-align: left; padding: 7px 10px; font-size: 12px; color: var(--text-sub); border-bottom: 1px solid #f0e0c0; white-space: nowrap; }
+  .detail-table td { padding: 7px 10px; border-bottom: 1px solid #f7edda; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .detail-table tbody tr:last-child td { border-bottom: none; }
+  .detail-table td.hot { color: var(--red); font-weight: 700; }
+  .pending-item { background: #fff; border: 1px solid #f0e0c0; border-radius: 10px; padding: 10px 12px; }
+  .pending-item .p-label { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+  .pending-item .p-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .p-value.st-out { color: var(--orange); }
+  .p-value.st-issued { color: var(--blue); }
+  .p-value.st-partial { color: var(--gold); }
+  .p-value.st-total { color: var(--red); }
+  .p-value.st-done { color: var(--green); }
+
+  .section-title { font-size: 15px; font-weight: 700; margin: 4px 0 10px; }
+  .city-cards { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 18px; }
+  .city-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 170px; box-shadow: var(--shadow); flex-shrink: 0; }
+  .city-card .city-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .city-card .city-line { font-size: 12px; color: var(--text-sub); margin-bottom: 3px; display: flex; justify-content: space-between; gap: 8px; }
+  .city-card .city-line b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .city-card .city-pending { font-size: 13px; font-weight: 600; margin-top: 5px; color: var(--red); }
+  .city-card .city-profit { font-size: 14px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .city-profit.profit-up { color: var(--green); }
+  .city-profit.profit-down { color: var(--red); }
+  .city-progress { height: 6px; background: #f0e8dd; border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
+  .city-progress-fill { height: 100%; background: var(--green); border-radius: 3px; }
+
+  .form { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 22px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; align-items: end; }
+  .field label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 5px; }
+  .field input, .field select { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; color: var(--text); }
+  .field input:focus, .field select:focus { outline: 2px solid var(--gold-light); border-color: var(--gold); }
+  .form-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .btn { padding: 9px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .05s ease, background .15s ease; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--red); color: #fff; }
+  .btn-primary:hover { background: var(--red-dark); }
+  .btn-secondary { background: #f0e8dd; color: var(--text); }
+  .btn-secondary:hover { background: #e6dccd; }
+  .btn-ghost { background: transparent; color: var(--text-sub); font-weight: 500; }
+  .btn-ghost:hover { color: var(--text); background: #f4ede4; }
+  .hint { font-size: 12px; color: var(--text-sub); margin-left: auto; }
+  .form-note { font-size: 12px; color: var(--text-sub); margin-left: 0; margin-top: 10px; line-height: 1.6; }
+
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 22px; -webkit-overflow-scrolling: touch; }
+  .table-wrap table { min-width: 1000px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th { background: #faf3ea; text-align: left; padding: 10px 12px; font-size: 12px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #f6efe6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fdf9f3; }
+  td.num, th.num { text-align: right; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .tag-uploaded { background: #e6f6ea; color: var(--green); }
+  .tag-partial { background: #fff3d6; color: var(--gold); }
+  .tag-issued { background: #e8f1fa; color: var(--blue); }
+  .tag-out { background: #fdf0e6; color: var(--orange); }
+  .tag-drawn { background: #efe9fb; color: var(--purple); }
+  .profit-up { color: var(--green); font-weight: 600; }
+  .profit-down { color: var(--red); font-weight: 600; }
+  .actions a { color: var(--text-sub); font-size: 13px; cursor: pointer; text-decoration: none; margin-right: 10px; }
+  .actions a:hover { color: var(--red); text-decoration: underline; }
+  .actions a.del:hover { color: var(--red); }
+  .empty { text-align: center; color: var(--text-sub); padding: 40px 0; font-size: 14px; }
+
+  .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 22px; }
+  .chart-wrap h3 { font-size: 15px; margin-bottom: 14px; }
+  #chart { width: 100%; height: 200px; display: block; }
+
+  footer { color: var(--text-sub); font-size: 12px; text-align: center; margin-top: 10px; }
+  @media (max-width: 560px) {
+    body { padding: 16px 10px 40px; }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .card .value { font-size: 18px; }
+    .form-grid { grid-template-columns: repeat(2, 1fr); }
+    .field input, .field select { font-size: 16px; } /* 防止 iOS 聚焦缩放 */
+    .btn { padding: 10px 14px; font-size: 15px; }
+    .account-bar { padding: 10px; }
+    .account-bar select { min-width: 100px; font-size: 14px; }
+    h1 { font-size: 20px; }
+    .actions a { padding: 4px 2px; }
+    .pending-grid { grid-template-columns: repeat(3, 1fr); }
+    .pending-item .p-value { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<h1><span class="ticket">🎫</span>发票抽奖记账工具</h1>
+<div class="subtitle">按城市记录发票购入、出票、上传与中奖情况；也支持只记盈亏金额</div>
+
+<div class="account-bar">
+  <span class="account-label">账户：</span>
+  <select id="account-select"></select>
+  <button class="btn btn-secondary btn-sm" id="btn-add-account">＋ 添加</button>
+  <button class="btn btn-ghost btn-sm" id="btn-rename-account">重命名</button>
+  <button class="btn btn-ghost btn-sm" id="btn-del-account">删除</button>
+  <span class="account-hint" id="account-hint"></span>
+</div>
+
+<div class="reminder-bar" id="reminder-bar" style="display:none">
+  <span id="reminder-text"></span>
+</div>
+
+<div class="cards">
+  <div class="card"><div class="label">累计购入张数</div><div class="value" id="stat-count">0</div></div>
+  <div class="card"><div class="label">累计购入成本（元）</div><div class="value" id="stat-cost">0.00</div></div>
+  <div class="card"><div class="label">累计中奖奖金（元）</div><div class="value" id="stat-prize">0.00</div></div>
+  <div class="card"><div class="label">累计利润（元）</div><div class="value" id="stat-profit">0.00</div></div>
+  <div class="card"><div class="label">利润率</div><div class="value" id="stat-ratio">—</div></div>
+  <div class="card"><div class="label">每张平均成本（元）</div><div class="value" id="stat-avg-cost">—</div></div>
+  <div class="card"><div class="label">每张平均奖金（元）</div><div class="value" id="stat-avg-prize">—</div></div>
+  <div class="card"><div class="label">每张平均利润（元）</div><div class="value" id="stat-avg-profit">—</div></div>
+  <div class="card"><div class="label">中奖记录占比</div><div class="value" id="stat-win-ratio">—</div></div>
+</div>
+
+<div class="pending-box">
+  <h3>📌 剩余发票汇总（别忘了处理）</h3>
+  <div class="pending-grid">
+    <div class="pending-item"><div class="p-label">未出票</div><div class="p-value st-out" id="pd-out">0</div></div>
+    <div class="pending-item"><div class="p-label">待上传</div><div class="p-value st-issued" id="pd-issued">0</div></div>
+    <div class="pending-item"><div class="p-label">待抽奖</div><div class="p-value st-partial" id="pd-draw">0</div></div>
+    <div class="pending-item"><div class="p-label">待处理合计</div><div class="p-value st-total" id="pd-total">0</div></div>
+    <div class="pending-item"><div class="p-label">已抽奖</div><div class="p-value st-done" id="pd-done">0</div></div>
+  </div>
+  <div class="pending-detail">
+    <div class="pd-subtitle">按地区汇总</div>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>地区</th>
+          <th class="num">未出票</th>
+          <th class="num">待上传</th>
+          <th class="num">待抽奖</th>
+          <th class="num">待处理</th>
+        </tr>
+      </thead>
+      <tbody id="pd-detail-body"></tbody>
+    </table>
+    <div id="pd-detail-empty" class="empty" style="padding:16px 0;border:none;">暂无待处理发票</div>
+  </div>
+  <div class="pending-detail">
+    <div class="pd-subtitle">待处理票清单（逐笔）</div>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>账户</th>
+          <th>日期</th>
+          <th>城市</th>
+          <th class="num">未出票</th>
+          <th class="num">待上传</th>
+          <th class="num">待抽奖</th>
+          <th class="num">待处理合计</th>
+        </tr>
+      </thead>
+      <tbody id="pd-record-body"></tbody>
+    </table>
+    <div id="pd-record-empty" class="empty" style="padding:16px 0;border:none;">没有待处理的票，全部搞定 🎉</div>
+  </div>
+</div>
+
+<div class="section-title">各城市统计</div>
+<div class="city-cards" id="city-cards">
+  <div class="empty" style="padding:0;border:none;text-align:left;">暂无数据</div>
+</div>
+
+<div class="form" id="form-box">
+  <div class="form-grid">
+    <div class="field">
+      <label>日期</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field">
+      <label>城市（可选）</label>
+      <input type="text" id="f-city" list="city-list" placeholder="如：广州">
+      <datalist id="city-list"></datalist>
+    </div>
+    <div class="field">
+      <label>购入张数</label>
+      <input type="number" id="f-count" min="0" step="1" placeholder="0">
+    </div>
+    <div class="field">
+      <label>已上传张数</label>
+      <input type="number" id="f-uploaded" min="0" step="1" placeholder="0">
+    </div>
+    <div class="field">
+      <label>已抽奖张数</label>
+      <input type="number" id="f-drawn" min="0" step="1" placeholder="0">
+    </div>
+    <div class="field">
+      <label>购入成本（元）</label>
+      <input type="number" id="f-cost" min="0" step="0.01" placeholder="0.00">
+    </div>
+    <div class="field">
+      <label>发票状态</label>
+      <select id="f-status">
+        <option value="已出票">已出票</option>
+        <option value="未出票">未出票</option>
+        <option value="部分上传">部分上传</option>
+        <option value="已上传">已上传</option>
+        <option value="已抽奖">已抽奖</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>盈损（元，简记可选）</label>
+      <input type="number" id="f-profit" step="0.01" placeholder="如：+12.5 或 -3">
+    </div>
+    <div class="field">
+      <label>中奖奖金（元）</label>
+      <input type="number" id="f-prize" min="0" step="0.01" placeholder="0.00">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" id="btn-save">保存记录</button>
+    <button class="btn btn-secondary" id="btn-cancel" style="display:none">取消编辑</button>
+    <span class="hint" id="editing-hint"></span>
+  </div>
+  <div class="form-note">
+    两种记法：① <b>只填「盈损」</b>，张数/成本/奖金留空 —— 适合补录只记了盈亏的日期；② <b>填张数/成本/奖金</b>，利润自动算（奖金−成本）。<b>已上传张数</b>用于区分已上传/未上传：一天只能传一部分时，填已传张数，状态自动变为「部分上传」，剩下未传的会出现在上面的待处理清单里。
+  </div>
+</div>
+
+<div class="chart-wrap">
+  <h3>每日利润趋势</h3>
+  <svg id="chart" viewBox="0 0 900 200" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>账户</th>
+        <th>日期</th>
+        <th>城市</th>
+        <th class="num">购入张数</th>
+        <th class="num">已上传</th>
+        <th class="num">未上传</th>
+        <th class="num">已抽奖</th>
+        <th class="num">待抽奖</th>
+        <th class="num">购入成本（元）</th>
+        <th>发票状态</th>
+        <th class="num">奖金（元）</th>
+        <th class="num">利润（元）</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="empty" class="empty">还没有记录，先在上面添加一条吧 🎟️</div>
+</div>
+
+<div class="form-actions" style="margin-bottom: 10px;">
+  <button class="btn btn-secondary" id="btn-export">导出 CSV</button>
+  <button class="btn btn-secondary" id="btn-backup">💾 备份数据</button>
+  <button class="btn btn-secondary" id="btn-restore">📥 恢复数据</button>
+  <input type="file" id="restore-file" accept=".json" style="display:none">
+  <button class="btn btn-ghost" id="btn-clear">清空全部数据</button>
+  <span class="hint" id="save-msg"></span>
+</div>
+
+<footer>数据保存在本浏览器中，建议定期点「💾 备份数据」保存到本地。</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "invoice-lottery-records-city";
+  var ACCOUNTS_KEY = "invoice-lottery-accounts";
+  var CURRENT_ACCOUNT_KEY = "invoice-lottery-current-account";
+  var records = [];
+  var accounts = [];
+  var currentAccount = "";
+  var editingId = null;
+
+  var DEFAULT_CITIES = [
+    "北京", "上海", "广州", "深圳", "杭州", "成都", "重庆", "武汉", "南京", "苏州",
+    "天津", "西安", "长沙", "郑州", "青岛", "宁波", "东莞", "佛山", "无锡", "合肥",
+    "福州", "厦门", "济南", "大连", "昆明", "沈阳", "哈尔滨", "长春", "石家庄", "太原",
+    "南宁", "贵阳", "兰州", "海口", "南昌", "泉州", "温州", "嘉兴", "绍兴", "金华",
+    "珠海", "中山", "惠州", "乌鲁木齐", "呼和浩特"
+  ];
+
+  /* ---------- 工具函数 ---------- */
+  function load() {
+    try {
+      // 账户
+      var acctRaw = localStorage.getItem(ACCOUNTS_KEY);
+      accounts = acctRaw ? JSON.parse(acctRaw) : [];
+      if (!Array.isArray(accounts) || accounts.length === 0) accounts = ["默认"];
+      currentAccount = localStorage.getItem(CURRENT_ACCOUNT_KEY) || "";
+      if (accounts.indexOf(currentAccount) === -1) currentAccount = accounts[0];
+
+      // 记录
+      var raw = localStorage.getItem(STORAGE_KEY);
+      records = raw ? JSON.parse(raw) : [];
+      var migrated = false;
+      records.forEach(function (r) {
+        r.count = Number(r.count) || 0;
+        r.cost = Number(r.cost) || 0;
+        r.prize = Number(r.prize) || 0;
+        r.city = (r.city || "").trim();
+        // 兼容旧数据：没有账户的记录归到第一个账户
+        if (!r.account) r.account = accounts[0];
+        // 关键修复：旧数据可能没有 id，导致点「编辑」找不到记录、没反应
+        if (!r.id) { r.id = Date.now() + "-" + Math.random().toString(36).slice(2, 7); migrated = true; }
+
+        // 区分新旧数据：旧数据没有 status 字段，且 uploaded 字段存的是状态字符串
+        var isOld = !r.status;
+        if (isOld) {
+          var oldStatus = r.uploaded;
+          if (oldStatus === "已上传") r.status = "已上传";
+          else if (oldStatus === "部分上传") r.status = "部分上传";
+          else if (oldStatus === "未上传") r.status = "已出票";
+          else r.status = "已出票";
+          // 旧数据已上传张数：旧「已上传」= 全传；其余（含部分上传）默认 0，用户后续可编辑补
+          r.uploaded = (r.status === "已上传") ? r.count : 0;
+        } else {
+          // 新数据：uploaded 是已上传张数（数字），缺省时按状态推断
+          if (r.uploaded === undefined || r.uploaded === null || r.uploaded === "") {
+            r.uploaded = (r.status === "已上传") ? r.count : 0;
+          }
+        }
+        r.uploaded = Math.max(0, Number(r.uploaded) || 0);
+        if (r.uploaded > r.count) r.uploaded = r.count;
+
+        // 已抽奖张数：旧数据没有该字段时，按状态推断
+        // 用户说明：之前已上传/已抽奖的历史记录都是已经抽过奖的，所以默认全抽
+        if (r.drawn === undefined || r.drawn === null || r.drawn === "") {
+          r.drawn = (r.status === "已上传" || r.status === "已抽奖") ? r.count : 0;
+        }
+        r.drawn = Math.max(0, Number(r.drawn) || 0);
+        if (r.drawn > r.count) r.drawn = r.count;
+        // 已抽奖的张数不能超过已上传
+        if (r.drawn > r.uploaded) r.drawn = r.uploaded;
+        // 如果全部已上传且全部已抽奖，状态升级为「已抽奖」
+        if (r.uploaded >= (r.count || 0) && r.drawn >= (r.count || 0) && (r.count || 0) > 0) {
+          r.status = "已抽奖";
+        }
+
+        if (r.profit === undefined || r.profit === null || r.profit === "") {
+          r.profit = "";
+        } else {
+          r.profit = Number(r.profit);
+          if (isNaN(r.profit)) r.profit = "";
+        }
+      });
+      // 如果有旧数据被迁移（补了 id），立即保存一次，避免下次再补
+      if (migrated) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      accounts = ["默认"];
+      currentAccount = "默认";
+      records = [];
+    }
+  }
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    } catch (e) {
+      flash("⚠️ 保存失败，浏览器存储空间不足或不可用");
+    }
+  }
+  function saveAccounts() {
+    try {
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      localStorage.setItem(CURRENT_ACCOUNT_KEY, currentAccount);
+    } catch (e) { /* ignore */ }
+  }
+  function today() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + m + "-" + day;
+  }
+  function money(n) {
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+  function fmtNum(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  function flash(msg) {
+    var el = document.getElementById("save-msg");
+    el.textContent = msg;
+    el.style.color = (msg.indexOf("⚠️") === 0) ? "var(--red)" : "var(--green)";
+    clearTimeout(flash.timer);
+    flash.timer = setTimeout(function () {
+      el.textContent = "";
+      el.style.color = "";
+    }, 3000);
+    // 让提示滚动到可见位置，避免"点了没反应"的错觉
+    var f = document.getElementById("form-box");
+    if (f) f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function cmp(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
+  function normCity(c) { return (c || "").trim(); }
+  function mergeStatus(a, b) {
+    // 合并两条同日期同城市记录的状态：取更"优先处理"的
+    var order = { "未出票": 0, "已出票": 1, "部分上传": 2, "已上传": 3, "已抽奖": 4 };
+    var oa = order[a] !== undefined ? order[a] : 1;
+    var ob = order[b] !== undefined ? order[b] : 1;
+    return oa <= ob ? a : b;
+  }
+  // 已上传张数（缺省按状态推断）
+  function uploadedOf(r) {
+    var u = r.uploaded;
+    if (u === undefined || u === null || u === "") u = (r.status === "已上传" || r.status === "已抽奖") ? (r.count || 0) : 0;
+    u = Math.max(0, Number(u) || 0);
+    if (u > (r.count || 0)) u = r.count || 0;
+    return u;
+  }
+  // 未上传张数 = 购入张数 - 已上传张数
+  function unUploadedOf(r) {
+    return (r.count || 0) - uploadedOf(r);
+  }
+  // 已抽奖张数（缺省按状态推断）
+  function drawnOf(r) {
+    var d = r.drawn;
+    if (d === undefined || d === null || d === "") d = (r.status === "已抽奖") ? (r.count || 0) : 0;
+    d = Math.max(0, Number(d) || 0);
+    if (d > (r.count || 0)) d = r.count || 0;
+    return d;
+  }
+  // 已上传但未抽奖张数 = 已上传 - 已抽奖
+  function unDrawnOf(r) {
+    return uploadedOf(r) - drawnOf(r);
+  }
+  // 按已上传/已抽奖张数自动推断状态（保存时用）
+  function deriveStatus(r) {
+    var n = r.count || 0;
+    var u = uploadedOf(r);
+    var d = drawnOf(r);
+    if (n === 0) return r.status || "已出票";
+    if (d >= n && u >= n) return "已抽奖";
+    if (u <= 0) {
+      // 一张都还没传：保留用户选的"未出票"，否则显示已出票
+      return (r.status === "未出票") ? "未出票" : "已出票";
+    }
+    if (u >= n) {
+      // 全传了但还没全部抽
+      return "已上传";
+    }
+    return "部分上传";
+  }
+  // 统一利润：明细模式的 (奖金-成本) + 简记模式的盈损字段
+  function profitOf(r) {
+    var extra = (r.profit === undefined || r.profit === null || r.profit === "" || isNaN(r.profit)) ? 0 : Number(r.profit);
+    // 未出票的明细记录不计入利润（等出票后再自动算）；简记的盈损是已发生的盈亏，照常计入
+    if (r.status === "未出票" && !isSimple(r)) return extra;
+    return (Number(r.prize) - Number(r.cost)) + extra;
+  }
+  function isSimple(r) {
+    return (r.profit !== undefined && r.profit !== null && r.profit !== "" && !isNaN(r.profit)) &&
+           (Number(r.count) === 0 && Number(r.cost) === 0 && Number(r.prize) === 0);
+  }
+  // 当前视图下应显示的记录：账户=全部时返回全部，否则只返回当前账户
+  function visibleRecords() {
+    if (currentAccount === "__all__") return records;
+    return records.filter(function (r) { return r.account === currentAccount; });
+  }
+
+  /* ---------- 城市下拉候选 ---------- */
+  function renderCityList() {
+    var set = {};
+    DEFAULT_CITIES.forEach(function (c) { set[c] = true; });
+    records.forEach(function (r) { if (r.city) set[r.city] = true; });
+    var html = Object.keys(set).sort().map(function (c) {
+      return "<option value=\"" + c + "\"></option>";
+    }).join("");
+    document.getElementById("city-list").innerHTML = html;
+  }
+
+  /* ---------- 汇总统计 ---------- */
+  function renderStats() {
+    var totalCount = 0, totalCost = 0, totalPrize = 0, totalProfit = 0;
+    var prizeRecords = 0;
+    var list = visibleRecords();
+    list.forEach(function (r) {
+      totalCount += r.count;
+      totalCost += r.cost;
+      totalPrize += r.prize;
+      totalProfit += profitOf(r);
+      if (r.prize > 0) prizeRecords += 1;
+    });
+    var profit = totalProfit;
+    document.getElementById("stat-count").textContent = fmtNum(totalCount);
+    document.getElementById("stat-cost").textContent = money(totalCost);
+    document.getElementById("stat-prize").textContent = money(totalPrize);
+    var profitEl = document.getElementById("stat-profit");
+    profitEl.textContent = (profit >= 0 ? "+" : "") + money(profit);
+    profitEl.className = "value " + (profit >= 0 ? "profit-up" : "profit-down");
+    document.getElementById("stat-ratio").textContent =
+      totalCost > 0 ? (profit >= 0 ? "+" : "") + (profit / totalCost * 100).toFixed(1) + "%" : "—";
+    // 每张平均
+    document.getElementById("stat-avg-cost").textContent =
+      totalCount > 0 ? money(totalCost / totalCount) : "—";
+    document.getElementById("stat-avg-prize").textContent =
+      totalCount > 0 ? money(totalPrize / totalCount) : "—";
+    document.getElementById("stat-avg-profit").textContent =
+      totalCount > 0 ? ((profit >= 0 ? "+" : "") + money(profit / totalCount)) : "—";
+    document.getElementById("stat-avg-profit").className =
+      totalCount > 0 ? "value " + (profit >= 0 ? "profit-up" : "profit-down") : "value";
+    // 中奖记录占比：有奖金>0的记录数 / 非简记记录数
+    var detailRecs = list.filter(function (r) { return !isSimple(r); }).length;
+    document.getElementById("stat-win-ratio").textContent =
+      detailRecs > 0 ? (prizeRecords / detailRecs * 100).toFixed(1) + "%" : "—";
+  }
+
+  /* ---------- 剩余发票汇总 ---------- */
+  function renderPending() {
+    var out = 0, toUpload = 0, toDraw = 0, drawn = 0;
+    var list = visibleRecords();
+    list.forEach(function (r) {
+      if (r.status === "未出票") out += (r.count || 0);
+      else {
+        toUpload += unUploadedOf(r);
+        toDraw += unDrawnOf(r);
+      }
+      drawn += drawnOf(r);
+    });
+    document.getElementById("pd-out").textContent = fmtNum(out);
+    document.getElementById("pd-issued").textContent = fmtNum(toUpload);
+    document.getElementById("pd-draw").textContent = fmtNum(toDraw);
+    document.getElementById("pd-total").textContent = fmtNum(out + toUpload + toDraw);
+    document.getElementById("pd-done").textContent = fmtNum(drawn);
+
+    // 顶部提醒横幅
+    var bar = document.getElementById("reminder-bar");
+    var barText = document.getElementById("reminder-text");
+    var pendingTotal = out + toUpload + toDraw;
+    if (pendingTotal > 0) {
+      bar.style.display = "flex";
+      var parts = [];
+      if (out > 0) parts.push(out + " 张未出票");
+      if (toUpload > 0) parts.push(toUpload + " 张待上传");
+      if (toDraw > 0) parts.push(toDraw + " 张待抽奖");
+      barText.textContent = "⏰ 还有 " + parts.join("、") + " 没处理完，记得去处理！";
+    } else {
+      bar.style.display = "none";
+    }
+
+    // 按地区汇总：未出票 + 待上传 + 待抽奖（按张数）
+    var detailMap = {};
+    list.forEach(function (r) {
+      var c = r.city || "未填写";
+      if (!detailMap[c]) detailMap[c] = { out: 0, upload: 0, draw: 0 };
+      if (r.status === "未出票") detailMap[c].out += (r.count || 0);
+      else {
+        detailMap[c].upload += unUploadedOf(r);
+        detailMap[c].draw += unDrawnOf(r);
+      }
+    });
+    var body = document.getElementById("pd-detail-body");
+    var emptyEl = document.getElementById("pd-detail-empty");
+    var cities = Object.keys(detailMap);
+    var hasPending = cities.some(function (c) {
+      return (detailMap[c].out + detailMap[c].upload + detailMap[c].draw) > 0;
+    });
+    if (!hasPending) {
+      body.innerHTML = "";
+      emptyEl.style.display = "block";
+    } else {
+      emptyEl.style.display = "none";
+      body.innerHTML = cities.map(function (c) {
+        var d = detailMap[c];
+        var pending = d.out + d.upload + d.draw;
+        return "<tr>" +
+          "<td><b>" + c + "</b></td>" +
+          "<td class='num'>" + (d.out > 0 ? fmtNum(d.out) : "—") + "</td>" +
+          "<td class='num'>" + (d.upload > 0 ? fmtNum(d.upload) : "—") + "</td>" +
+          "<td class='num'>" + (d.draw > 0 ? fmtNum(d.draw) : "—") + "</td>" +
+          "<td class='num hot'>" + fmtNum(pending) + "</td>" +
+          "</tr>";
+      }).join("");
+    }
+
+    // 逐笔待处理票清单（欠得多的排前面）
+    var recBody = document.getElementById("pd-record-body");
+    var recEmpty = document.getElementById("pd-record-empty");
+    var pendingRecs = list.filter(function (r) {
+      if (r.status === "未出票") return (r.count || 0) > 0;
+      return (unUploadedOf(r) + unDrawnOf(r)) > 0;
+    }).map(function (r) {
+      var notOut = (r.status === "未出票") ? (r.count || 0) : 0;
+      var notUp = (r.status === "未出票") ? 0 : unUploadedOf(r);
+      var notDraw = (r.status === "未出票") ? 0 : unDrawnOf(r);
+      r._pendingTotal = notOut + notUp + notDraw;
+      return r;
+    }).sort(function (a, b) {
+      if (b._pendingTotal !== a._pendingTotal) return b._pendingTotal - a._pendingTotal;
+      return cmp(a, b);
+    });
+    if (pendingRecs.length === 0) {
+      recBody.innerHTML = "";
+      recEmpty.style.display = "block";
+    } else {
+      recEmpty.style.display = "none";
+      recBody.innerHTML = pendingRecs.map(function (r) {
+        var notOut = (r.status === "未出票") ? (r.count || 0) : 0;
+        var notUp = (r.status === "未出票") ? 0 : unUploadedOf(r);
+        var notDraw = (r.status === "未出票") ? 0 : unDrawnOf(r);
+        var total = notOut + notUp + notDraw;
+        return "<tr>" +
+          "<td>" + (r.account || "默认") + "</td>" +
+          "<td>" + r.date + "</td>" +
+          "<td><b>" + (r.city || "未填写") + "</b></td>" +
+          "<td class='num'>" + (notOut > 0 ? fmtNum(notOut) : "—") + "</td>" +
+          "<td class='num'>" + (notUp > 0 ? fmtNum(notUp) : "—") + "</td>" +
+          "<td class='num'>" + (notDraw > 0 ? fmtNum(notDraw) : "—") + "</td>" +
+          "<td class='num hot'>" + fmtNum(total) + "</td>" +
+          "</tr>";
+      }).join("");
+    }
+  }
+
+  /* ---------- 各城市统计 ---------- */
+  function renderCityStats() {
+    var container = document.getElementById("city-cards");
+    var map = {};
+    visibleRecords().forEach(function (r) {
+      var c = r.city || "未填写";
+      if (!map[c]) map[c] = { count: 0, cost: 0, prize: 0, profit: 0, simple: 0, pending: 0, uploaded: 0 };
+      map[c].count += r.count;
+      map[c].cost += r.cost;
+      map[c].prize += r.prize;
+      map[c].profit += profitOf(r);
+      map[c].uploaded += uploadedOf(r);
+      if (isSimple(r)) map[c].simple += 1;
+      // 待处理 = 未出票张数 + 未上传张数 + 待抽奖张数
+      if (r.status === "未出票") map[c].pending += (r.count || 0);
+      else map[c].pending += unUploadedOf(r) + unDrawnOf(r);
+    });
+    var cities = Object.keys(map).sort(function (a, b) {
+      return map[b].profit - map[a].profit;
+    });
+    if (cities.length === 0) {
+      container.innerHTML = "<div class='empty' style='padding:0;border:none;text-align:left;'>暂无数据</div>";
+      return;
+    }
+    container.innerHTML = cities.map(function (c) {
+      var d = map[c];
+      var profit = d.profit;
+      var extraLine = d.simple > 0
+        ? "<div class='city-line'><span>简记</span><b>" + d.simple + " 条</b></div>"
+        : "";
+      var pendingLine = d.pending > 0
+        ? "<div class='city-pending'>待处理 " + fmtNum(d.pending) + " 张</div>"
+        : "";
+      // 每张平均成本/奖金（已出票的才算奖金均值更合理，简化处理用总张数）
+      var avgCost = d.count > 0 ? money(d.cost / d.count) : "—";
+      var avgPrize = d.count > 0 ? money(d.prize / d.count) : "—";
+      // 上传进度条：已上传张数/总张数（未出票的不算已上传）
+      var totalCount = d.count || 0;
+      var upCount = Math.min(d.uploaded, totalCount);
+      var pct = totalCount > 0 ? Math.round(upCount / totalCount * 100) : 0;
+      var bar = totalCount > 0
+        ? "<div class='city-progress'><div class='city-progress-fill' style='width:" + pct + "%'></div></div>" +
+          "<div class='city-line'><span>上传进度</span><b>" + pct + "%</b></div>"
+        : "";
+      return "<div class='city-card'>" +
+        "<div class='city-name'>" + c + "</div>" +
+        "<div class='city-line'><span>张数</span><b>" + fmtNum(d.count) + "</b></div>" +
+        "<div class='city-line'><span>成本</span><b>" + money(d.cost) + "</b></div>" +
+        "<div class='city-line'><span>奖金</span><b>" + money(d.prize) + "</b></div>" +
+        "<div class='city-line'><span>每张均价</span><b>" + avgCost + "</b></div>" +
+        "<div class='city-line'><span>每张均奖</span><b>" + avgPrize + "</b></div>" +
+        bar +
+        extraLine +
+        pendingLine +
+        "<div class='city-profit " + (profit >= 0 ? "profit-up" : "profit-down") + "'>" +
+          (profit >= 0 ? "+" : "") + money(profit) + " 元</div>" +
+        "</div>";
+    }).join("");
+  }
+
+  /* ---------- 表格 ---------- */
+  function statusTag(val) {
+    if (val === "部分上传") return "<span class='tag tag-partial'>部分上传</span>";
+    if (val === "已上传") return "<span class='tag tag-uploaded'>已上传</span>";
+    if (val === "未出票") return "<span class='tag tag-out'>未出票</span>";
+    if (val === "已抽奖") return "<span class='tag tag-drawn'>已抽奖</span>";
+    return "<span class='tag tag-issued'>已出票</span>";
+  }
+  function renderTable() {
+    var tbody = document.getElementById("tbody");
+    var empty = document.getElementById("empty");
+    var sorted = visibleRecords().slice().sort(function (a, b) {
+      var d = cmp(b, a);
+      return d !== 0 ? d : a.city.localeCompare(b.city);
+    });
+
+    tbody.innerHTML = "";
+    if (sorted.length === 0) {
+      empty.style.display = "block";
+      return;
+    }
+    empty.style.display = "none";
+    sorted.forEach(function (r) {
+      var profit = profitOf(r);
+      var simple = isSimple(r);
+      var notIssued = (r.status === "未出票" && !simple);
+      var up = uploadedOf(r);
+      var notUp = unUploadedOf(r);
+      var dn = drawnOf(r);
+      var notDn = unDrawnOf(r);
+      var acctCell = "<td><b>" + (r.account || "默认") + "</b></td>";
+      var profitCell = notIssued
+        ? "<td class='num' style='color:var(--text-sub)'>待出票</td>"
+        : "<td class='num " + (profit >= 0 ? "profit-up" : "profit-down") + "'>" +
+            (profit >= 0 ? "+" : "") + money(profit) +
+            (simple ? " <span style='color:var(--text-sub);font-weight:400'>（简记）</span>" : "") +
+          "</td>";
+      // 未出票时，已上传/未上传/已抽奖/待抽奖显示 —；否则显示张数
+      var upCell, notUpCell, dnCell, notDnCell;
+      if (notIssued) {
+        upCell = "<td class='num' style='color:var(--text-sub)'>—</td>";
+        notUpCell = "<td class='num' style='color:var(--text-sub)'>—</td>";
+        dnCell = "<td class='num' style='color:var(--text-sub)'>—</td>";
+        notDnCell = "<td class='num' style='color:var(--text-sub)'>—</td>";
+      } else {
+        upCell = "<td class='num'>" + fmtNum(up) + "</td>";
+        notUpCell = "<td class='num" + (notUp > 0 ? " profit-down" : "") + "'>" + fmtNum(notUp) + "</td>";
+        dnCell = "<td class='num'>" + fmtNum(dn) + "</td>";
+        notDnCell = "<td class='num" + (notDn > 0 ? " profit-down" : "") + "'>" + fmtNum(notDn) + "</td>";
+      }
+      var tr = document.createElement("tr");
+      if (simple) {
+        tr.innerHTML =
+          acctCell +
+          "<td>" + r.date + "</td>" +
+          "<td><b>" + (r.city || "未填写") + "</b></td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          "<td>" + statusTag(r.status) + "</td>" +
+          "<td class='num' style='color:var(--text-sub)'>—</td>" +
+          profitCell +
+          "<td class='actions'>" +
+            "<a data-edit='" + r.id + "'>编辑</a>" +
+            "<a class='del' data-del='" + r.id + "'>删除</a>" +
+          "</td>";
+      } else {
+        tr.innerHTML =
+          acctCell +
+          "<td>" + r.date + "</td>" +
+          "<td><b>" + (r.city || "未填写") + "</b></td>" +
+          "<td class='num'>" + fmtNum(r.count) + "</td>" +
+          upCell +
+          notUpCell +
+          dnCell +
+          notDnCell +
+          "<td class='num'>" + money(r.cost) + "</td>" +
+          "<td>" + statusTag(r.status) + "</td>" +
+          "<td class='num'>" + money(r.prize) + "</td>" +
+          profitCell +
+          "<td class='actions'>" +
+            "<a data-edit='" + r.id + "'>编辑</a>" +
+            "<a class='del' data-del='" + r.id + "'>删除</a>" +
+          "</td>";
+      }
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll("[data-edit]").forEach(function (a) {
+      a.addEventListener("click", function () { startEdit(a.getAttribute("data-edit")); });
+    });
+    tbody.querySelectorAll("[data-del]").forEach(function (a) {
+      a.addEventListener("click", function () { del(a.getAttribute("data-del")); });
+    });
+  }
+
+  /* ---------- 图表（按天汇总利润） ---------- */
+  function renderChart() {
+    var svg = document.getElementById("chart");
+    var byDate = {};
+    visibleRecords().forEach(function (r) {
+      if (!byDate[r.date]) byDate[r.date] = 0;
+      byDate[r.date] += profitOf(r);
+    });
+    var dates = Object.keys(byDate).sort();
+    if (dates.length === 0) {
+      svg.innerHTML = "<text x='450' y='100' text-anchor='middle' fill='#8a7f77' font-size='13'>暂无数据</text>";
+      return;
+    }
+    var W = 900, H = 200, padL = 8, padR = 8, padT = 16, padB = 26;
+    var innerW = W - padL - padR;
+    var innerH = H - padT - padB;
+
+    var profits = dates.map(function (d) { return byDate[d]; });
+    var maxAbs = Math.max(1, Math.max.apply(null, profits.map(function (p) { return Math.abs(p); })));
+    var n = dates.length;
+    var slot = innerW / n;
+    var barW = Math.min(46, slot * 0.6);
+    function y(v) { return padT + innerH - ((v + maxAbs) / (2 * maxAbs)) * innerH; }
+
+    var html = "";
+    html += "<line x1='" + padL + "' y1='" + y(0) + "' x2='" + (W - padR) + "' y2='" + y(0) +
+            "' stroke='#d8cbb8' stroke-width='1' stroke-dasharray='4 3'/>";
+
+    profits.forEach(function (p, i) {
+      var cx = padL + slot * i + slot / 2;
+      var zeroY = y(0);
+      var topY = y(p);
+      var h = Math.abs(zeroY - topY);
+      var color = p >= 0 ? "#e5484d" : "#8a7f77";
+      html += "<rect x='" + (cx - barW / 2) + "' y='" + Math.min(zeroY, topY) +
+              "' width='" + barW + "' height='" + h + "' rx='3' fill='" + color + "' opacity='0.85'>" +
+              "<title>" + dates[i] + "：" + (p >= 0 ? "+" : "") + money(p) + " 元</title></rect>";
+      var showLabel = n <= 31 || i % Math.ceil(n / 20) === 0 || i === n - 1;
+      if (showLabel) {
+        html += "<text x='" + cx + "' y='" + (H - 8) + "' text-anchor='middle' fill='#8a7f77' font-size='10'>" + dates[i].slice(5) + "</text>";
+      }
+    });
+
+    svg.innerHTML = html;
+  }
+
+  /* ---------- 表单 ---------- */
+  function getForm() {
+    var date = document.getElementById("f-date").value;
+    var city = normCity(document.getElementById("f-city").value);
+    var count = parseInt(document.getElementById("f-count").value, 10);
+    var cost = parseFloat(document.getElementById("f-cost").value);
+    var status = document.getElementById("f-status").value;
+    var uploaded = parseInt(document.getElementById("f-uploaded").value, 10);
+    var drawn = parseInt(document.getElementById("f-drawn").value, 10);
+    var prize = parseFloat(document.getElementById("f-prize").value);
+    var profitRaw = document.getElementById("f-profit").value.trim();
+
+    if (!date) { flash("⚠️ 请选择日期"); return null; }
+    if (isNaN(count) || count < 0) count = 0;
+    if (isNaN(cost) || cost < 0) cost = 0;
+    if (isNaN(uploaded) || uploaded < 0) uploaded = 0;
+    if (uploaded > count) uploaded = count;
+    if (isNaN(drawn) || drawn < 0) drawn = 0;
+    if (drawn > uploaded) drawn = uploaded;
+    if (isNaN(prize) || prize < 0) prize = 0;
+
+    var profit = "";
+    if (profitRaw !== "") {
+      profit = parseFloat(profitRaw);
+      if (isNaN(profit)) { flash("⚠️ 盈损请输入数字（如 12.5 或 -3）"); return null; }
+    }
+
+    var rec = { date: date, city: city, count: count, cost: cost, status: status, uploaded: uploaded, drawn: drawn, prize: prize, profit: profit, account: currentAccount };
+    // 自动推断状态：按已上传/已抽奖张数判断
+    rec.status = deriveStatus(rec);
+    return rec;
+  }
+  function clearForm() {
+    document.getElementById("f-date").value = today();
+    document.getElementById("f-city").value = "";
+    document.getElementById("f-count").value = "";
+    document.getElementById("f-uploaded").value = "";
+    document.getElementById("f-drawn").value = "";
+    document.getElementById("f-cost").value = "";
+    document.getElementById("f-status").value = "已出票";
+    document.getElementById("f-profit").value = "";
+    document.getElementById("f-prize").value = "";
+    document.getElementById("editing-hint").textContent = "";
+    document.getElementById("btn-cancel").style.display = "none";
+    document.getElementById("btn-save").textContent = "保存记录";
+    editingId = null;
+  }
+  function startEdit(id) {
+    var r = records.find(function (x) { return x.id === id; });
+    if (!r) return;
+    editingId = id;
+    document.getElementById("f-date").value = r.date;
+    document.getElementById("f-city").value = r.city;
+    document.getElementById("f-count").value = r.count;
+    document.getElementById("f-uploaded").value = uploadedOf(r);
+    document.getElementById("f-drawn").value = drawnOf(r);
+    document.getElementById("f-cost").value = r.cost;
+    document.getElementById("f-status").value = r.status || "已出票";
+    document.getElementById("f-profit").value = (r.profit === undefined || r.profit === null || r.profit === "") ? "" : r.profit;
+    document.getElementById("f-prize").value = r.prize;
+    document.getElementById("editing-hint").textContent = "正在编辑 " + r.date + " " + r.city;
+    document.getElementById("btn-cancel").style.display = "inline-block";
+    document.getElementById("btn-save").textContent = "保存修改";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function del(id) {
+    var r = records.find(function (x) { return x.id === id; });
+    if (!r) return;
+    if (!confirm("确定删除 " + r.date + " " + (r.city || "") + " 这条记录吗？")) return;
+    records = records.filter(function (x) { return x.id !== id; });
+    if (editingId === id) clearForm();
+    save();
+    renderAll();
+  }
+
+  document.getElementById("btn-save").addEventListener("click", function () {
+    if (currentAccount === "__all__") {
+      flash("⚠️ 请在「全部账户」下先选择具体账户再记账");
+      return;
+    }
+    var f = getForm();
+    if (!f) return;
+    if (editingId) {
+      var idx = records.findIndex(function (x) { return x.id === editingId; });
+      if (idx >= 0) records[idx] = f;
+      clearForm();
+      flash("✅ 已保存修改");
+    } else {
+      // 同一天同一城市同一账户已有记录时，询问合并或新增
+      var dup = records.find(function (x) {
+        return x.date === f.date && normCity(x.city) === f.city && x.account === currentAccount;
+      });
+      if (dup) {
+        var doMerge = confirm("该日期该城市已有记录（" + dup.date + " " + dup.city + "）。\n点「确定」合并到原记录，点「取消」新增一条。");
+        if (doMerge) {
+          dup.count += f.count;
+          dup.cost += f.cost;
+          dup.prize += f.prize;
+          dup.uploaded = (uploadedOf(dup) + uploadedOf(f));
+          if (dup.uploaded > dup.count) dup.uploaded = dup.count;
+          dup.drawn = (drawnOf(dup) + drawnOf(f));
+          if (dup.drawn > dup.uploaded) dup.drawn = dup.uploaded;
+          dup.status = deriveStatus(dup);
+          var a = (dup.profit === undefined || dup.profit === null || dup.profit === "") ? 0 : Number(dup.profit);
+          var b = (f.profit === undefined || f.profit === null || f.profit === "") ? 0 : Number(f.profit);
+          dup.profit = (a + b === 0) ? "" : a + b;
+        } else {
+          f.id = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+          records.push(f);
+        }
+      } else {
+        f.id = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+        records.push(f);
+      }
+      clearForm();
+      flash("✅ 已保存");
+    }
+    save();
+    renderAll();
+  });
+
+  document.getElementById("btn-cancel").addEventListener("click", function () {
+    clearForm();
+  });
+
+  /* ---------- 导出 / 清空 ---------- */
+  document.getElementById("btn-export").addEventListener("click", function () {
+    var list = visibleRecords();
+    if (list.length === 0) { flash("⚠️ 暂无数据可导出"); return; }
+    var sorted = list.slice().sort(function (a, b) {
+      var d = cmp(a, b);
+      return d !== 0 ? d : a.city.localeCompare(b.city);
+    });
+    var lines = ["账户,日期,城市,购入张数,已上传,未上传,已抽奖,待抽奖,购入成本,发票状态,中奖奖金,盈损(简记),利润"];
+    sorted.forEach(function (r) {
+      var profit = profitOf(r).toFixed(2);
+      var p = (r.profit === undefined || r.profit === null || r.profit === "") ? "" : r.profit;
+      lines.push([r.account || "默认", r.date, r.city, r.count, uploadedOf(r), unUploadedOf(r), drawnOf(r), unDrawnOf(r), r.cost, r.status || "已出票", r.prize, p, profit].join(","));
+    });
+    var blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "发票抽奖记录.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    flash("✅ 已导出 CSV");
+  });
+
+  document.getElementById("btn-clear").addEventListener("click", function () {
+    if (records.length === 0) { flash("⚠️ 暂无数据"); return; }
+    if (!confirm("确定清空全部 " + records.length + " 条记录吗？此操作不可恢复。")) return;
+    if (!confirm("再次确认：真的要清空所有数据吗？")) return;
+    records = [];
+    clearForm();
+    save();
+    renderAll();
+    flash("已清空");
+  });
+
+  /* ---------- 备份 / 恢复 ---------- */
+  document.getElementById("btn-backup").addEventListener("click", function () {
+    var data = {
+      version: 1,
+      type: "invoice-lottery-backup",
+      exportedAt: new Date().toISOString(),
+      accounts: accounts,
+      currentAccount: currentAccount,
+      records: records
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    var d = new Date();
+    var ymd = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+    a.download = "发票抽奖数据备份-" + ymd + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    flash("✅ 已导出备份文件，请妥善保存");
+  });
+
+  document.getElementById("btn-restore").addEventListener("click", function () {
+    document.getElementById("restore-file").click();
+  });
+
+  document.getElementById("restore-file").addEventListener("change", function () {
+    var file = this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var data = JSON.parse(e.target.result);
+        // 校验备份格式
+        if (!data || data.type !== "invoice-lottery-backup" || !Array.isArray(data.records)) {
+          flash("⚠️ 备份文件格式不正确");
+          return;
+        }
+        if (!confirm("确定用备份数据覆盖当前全部数据吗？当前 " + records.length + " 条记录将被替换。")) return;
+        accounts = Array.isArray(data.accounts) && data.accounts.length > 0 ? data.accounts : ["默认"];
+        currentAccount = data.currentAccount && accounts.indexOf(data.currentAccount) !== -1 ? data.currentAccount : accounts[0];
+        records = data.records;
+        // 重新跑一次迁移，确保老备份也兼容
+        var migrated = false;
+        records.forEach(function (r) {
+          if (!r.id) { r.id = Date.now() + "-" + Math.random().toString(36).slice(2, 7); migrated = true; }
+          r.count = Number(r.count) || 0;
+          r.cost = Number(r.cost) || 0;
+          r.prize = Number(r.prize) || 0;
+          r.city = (r.city || "").trim();
+          if (!r.account) r.account = accounts[0];
+          if (r.uploaded === undefined || r.uploaded === null || r.uploaded === "") {
+            r.uploaded = (r.status === "已上传" || r.status === "已抽奖") ? r.count : 0;
+          }
+          r.uploaded = Math.max(0, Number(r.uploaded) || 0);
+          if (r.uploaded > r.count) r.uploaded = r.count;
+          if (r.drawn === undefined || r.drawn === null || r.drawn === "") {
+            r.drawn = (r.status === "已上传" || r.status === "已抽奖") ? r.count : 0;
+          }
+          r.drawn = Math.max(0, Number(r.drawn) || 0);
+          if (r.drawn > r.count) r.drawn = r.count;
+          if (r.drawn > r.uploaded) r.drawn = r.uploaded;
+          if (r.uploaded >= (r.count || 0) && r.drawn >= (r.count || 0) && (r.count || 0) > 0) {
+            r.status = "已抽奖";
+          }
+        });
+        save();
+        saveAccounts();
+        clearForm();
+        renderAll();
+        renderAccountSelect();
+        flash("✅ 数据已恢复");
+      } catch (err) {
+        flash("⚠️ 备份文件解析失败");
+      }
+    };
+    reader.readAsText(file);
+    this.value = "";
+  });
+
+  /* ---------- 账户管理 ---------- */
+  function renderAccountSelect() {
+    var sel = document.getElementById("account-select");
+    var html = "<option value=\"__all__\">全部账户（合计）</option>";
+    accounts.forEach(function (a) {
+      var selected = (a === currentAccount) ? " selected" : "";
+      html += "<option value=\"" + a + "\"" + selected + ">" + a + "</option>";
+    });
+    sel.innerHTML = html;
+    sel.value = currentAccount;
+    document.getElementById("account-hint").textContent =
+      (currentAccount === "__all__") ? "当前查看全部账户合计" : "当前记录将保存到：" + currentAccount;
+  }
+
+  document.getElementById("account-select").addEventListener("change", function () {
+    currentAccount = this.value;
+    localStorage.setItem(CURRENT_ACCOUNT_KEY, currentAccount);
+    if (editingId) { editingId = null; clearForm(); }
+    renderAll();
+    renderAccountSelect();
+  });
+
+  document.getElementById("btn-add-account").addEventListener("click", function () {
+    var name = prompt("新账户名称：");
+    if (!name) return;
+    name = name.trim();
+    if (!name) { flash("⚠️ 账户名称不能为空"); return; }
+    if (accounts.indexOf(name) !== -1) { flash("⚠️ 账户「" + name + "」已存在"); return; }
+    accounts.push(name);
+    currentAccount = name;
+    saveAccounts();
+    clearForm();
+    renderAll();
+    renderAccountSelect();
+    flash("✅ 已添加账户「" + name + "」");
+  });
+
+  document.getElementById("btn-rename-account").addEventListener("click", function () {
+    if (currentAccount === "__all__") { flash("⚠️ 请先选择要重命名的账户"); return; }
+    var oldName = currentAccount;
+    var name = prompt("重命名账户「" + oldName + "」为：", oldName);
+    if (!name) return;
+    name = name.trim();
+    if (!name) { flash("⚠️ 名称不能为空"); return; }
+    if (accounts.indexOf(name) !== -1 && name !== oldName) { flash("⚠️ 账户「" + name + "」已存在"); return; }
+    var idx = accounts.indexOf(oldName);
+    accounts[idx] = name;
+    records.forEach(function (r) {
+      if (r.account === oldName) r.account = name;
+    });
+    currentAccount = name;
+    save();
+    saveAccounts();
+    renderAll();
+    renderAccountSelect();
+    flash("✅ 已重命名为「" + name + "」");
+  });
+
+  document.getElementById("btn-del-account").addEventListener("click", function () {
+    if (currentAccount === "__all__") { flash("⚠️ 请先选择要删除的账户"); return; }
+    if (accounts.length <= 1) { flash("⚠️ 至少保留一个账户"); return; }
+    var name = currentAccount;
+    var count = records.filter(function (r) { return r.account === name; }).length;
+    var msg = "确定删除账户「" + name + "」吗？\n";
+    if (count > 0) msg += "该账户下 " + count + " 条记录将一并删除，不可恢复！";
+    if (!confirm(msg)) return;
+    if (count > 0 && !confirm("再次确认：真的要删除「" + name + "」及其全部记录吗？")) return;
+    accounts = accounts.filter(function (a) { return a !== name; });
+    records = records.filter(function (r) { return  r.account !== name; });
+    currentAccount = accounts[0];
+    save();
+    saveAccounts();
+    saveAccounts();
+    clearForm();
+    renderAll();
+    renderAccountSelect();
+    flash("已删除账户「" + name + "」");
+  });
+
+  /* ---------- 初始化 ---------- */
+  function renderAll() {
+    renderStats();
+    renderPending();
+    renderCityStats();
+    renderTable();
+    renderChart();
+    renderCityList();
+  }
+
+  load();
+  renderAll();
+  renderAccountSelect();
+})();
+</script>
+</body>
+</html>
