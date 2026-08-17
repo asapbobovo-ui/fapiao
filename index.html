@@ -122,6 +122,20 @@
 
   .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 22px; -webkit-overflow-scrolling: touch; }
   .table-wrap table { min-width: 1100px; }
+  .search-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .search-bar input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; background: #fff; color: var(--text); box-shadow: var(--shadow);
+  }
+  .search-bar input:focus { outline: 2px solid var(--gold-light); border-color: var(--gold); }
+  .search-hint { font-size: 12px; color: var(--text-sub); white-space: nowrap; }
+  /* 点击行进入编辑 */
+  tbody tr { cursor: pointer; }
+  /* 固定列：日期列（左）和操作列（右） */
+  th.col-date, td.col-date { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: 1px 0 0 rgba(200,180,150,0.15); }
+  thead th.col-date { background: #faf3ea; z-index: 3; }
+  th.col-actions, td.col-actions { position: sticky; right: 0; z-index: 2; background: #fff; box-shadow: -1px 0 0 rgba(200,180,150,0.15); }
+  thead th.col-actions { background: #faf3ea; z-index: 3; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   thead th { background: #faf3ea; text-align: left; padding: 10px 12px; font-size: 12px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; }
   tbody td { padding: 10px 12px; border-bottom: 1px solid #f6efe6; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -311,12 +325,16 @@
   <svg id="chart" viewBox="0 0 900 200" preserveAspectRatio="xMidYMid meet"></svg>
 </div>
 
+<div class="search-bar">
+  <input type="text" id="search-input" placeholder="🔍 搜索：日期 / 城市 / 备注 / 账户…">
+  <span class="search-hint" id="search-hint"></span>
+</div>
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
         <th>账户</th>
-        <th>日期</th>
+        <th class="col-date">日期</th>
         <th>上传时间</th>
         <th>城市</th>
         <th class="num">购入张数</th>
@@ -329,7 +347,7 @@
         <th class="num">奖金（元）</th>
         <th class="num">利润（元）</th>
         <th>备注</th>
-        <th>操作</th>
+        <th class="col-actions">操作</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -731,7 +749,17 @@
   function renderTable() {
     var tbody = document.getElementById("tbody");
     var empty = document.getElementById("empty");
-    var sorted = visibleRecords().slice().sort(function (a, b) {
+    var kw = (document.getElementById("search-input").value || "").trim().toLowerCase();
+    var sorted = visibleRecords().filter(function (r) {
+      if (!kw) return true;
+      var hay = [
+        r.date, r.city, r.note, r.account, r.status,
+        (r.uploadTime || ""),
+        String(r.count), String(r.cost), String(r.prize),
+        String(r.profit || "")
+      ].join(" ").toLowerCase();
+      return hay.indexOf(kw) !== -1;
+    }).sort(function (a, b) {
       // 先按日期：新的在前
       var d = cmp(b, a);
       if (d !== 0) return d;
@@ -744,6 +772,9 @@
       // 都没填时间：保持原来的城市排序兜底
       return a.city.localeCompare(b.city);
     });
+    // 更新搜索提示
+    var hintEl = document.getElementById("search-hint");
+    if (hintEl) hintEl.textContent = kw ? "找到 " + sorted.length + " 条" : "";
 
     tbody.innerHTML = "";
     if (sorted.length === 0) {
@@ -787,11 +818,21 @@
       var note = (r.note === undefined || r.note === null || r.note === "") ? "" : String(r.note);
       var noteCell = "<td class='note-cell'>" + (note ? note : "—") + "</td>";
       var upTimeCell = "<td style='color:var(--text-sub);font-size:12px;'>" + ((r.uploadTime) ? r.uploadTime : "—") + "</td>";
+      var actionsCell = "<td class='col-actions'><span class='actions'>" +
+            "<a data-edit='" + r.id + "'>编辑</a>" +
+            "<a class='del' data-del='" + r.id + "'>删除</a>" +
+          "</span></td>";
+      var dateCell = "<td class='col-date'>" + r.date + "</td>";
       var tr = document.createElement("tr");
+      // 点击行直接进入编辑
+      tr.addEventListener("click", function (ev) {
+        if (ev.target && (ev.target.getAttribute("data-del") || ev.target.getAttribute("data-edit"))) return;
+        startEdit(r.id);
+      });
       if (simple) {
         tr.innerHTML =
           acctCell +
-          "<td>" + r.date + "</td>" +
+          dateCell +
           upTimeCell +
           "<td><b>" + (r.city || "未填写") + "</b></td>" +
           "<td class='num' style='color:var(--text-sub)'>—</td>" +
@@ -804,14 +845,11 @@
           "<td class='num' style='color:var(--text-sub)'>—</td>" +
           profitCell +
           noteCell +
-          "<td class='actions'>" +
-            "<a data-edit='" + r.id + "'>编辑</a>" +
-            "<a class='del' data-del='" + r.id + "'>删除</a>" +
-          "</td>";
+          actionsCell;
       } else {
         tr.innerHTML =
           acctCell +
-          "<td>" + r.date + "</td>" +
+          dateCell +
           upTimeCell +
           "<td><b>" + (r.city || "未填写") + "</b></td>" +
           "<td class='num'>" + fmtNum(r.count) + "</td>" +
@@ -824,10 +862,7 @@
           "<td class='num'>" + money(r.prize) + "</td>" +
           profitCell +
           noteCell +
-          "<td class='actions'>" +
-            "<a data-edit='" + r.id + "'>编辑</a>" +
-            "<a class='del' data-del='" + r.id + "'>删除</a>" +
-          "</td>";
+          actionsCell;
       }
       tbody.appendChild(tr);
     });
