@@ -1370,9 +1370,18 @@
     flash("已删除账户「" + name + "」");
   });
 
+  /* ---------- 搜索框监听 ---------- */
+  var searchInput = document.getElementById("search-input");
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      renderTable();
+    });
+  }
+
   /* ---------- 初始化 ---------- */
-  function renderAll() {
-    renderStats();    renderPending();
+function renderAll() {
+    renderStats();
+    renderPending();
     renderCityStats();
     renderTable();
     renderChart();
