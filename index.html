@@ -482,7 +482,23 @@
   }
   function profitOf(r) {
     var extra = (r.profit === undefined || r.profit === null || r.profit === "" || isNaN(r.profit)) ? 0 : Number(r.profit);
-    if (r.status === "未出票" && !isSimple(r)) return extra;
+    // 简记记录：盈损是已发生结果，直接计入
+    if (isSimple(r)) return extra;
+    var n = r.count || 0;
+    var u = uploadedOf(r);
+    var d = drawnOf(r);
+    // 未出票：还没结果，成本不计入，只算已发生的盈损
+    if (r.status === "未出票") return extra;
+    // 有未抽奖的票：还没结果，只按「已抽张数/购入张数」比例计入成本
+    if (d < u) {
+      // 已抽部分按比例承担成本，奖金按已抽比例估算
+      // 未抽部分的成本不计入（避免显示亏损）
+      if (n === 0) return extra;
+      var drawnCost = r.cost * (d / n);
+      var drawnPrize = r.prize * (d / n);
+      return (drawnPrize - drawnCost) + extra;
+    }
+    // 全部抽完：正常利润
     return (Number(r.prize) - Number(r.cost)) + extra;
   }
   function isSimple(r) {
@@ -729,12 +745,19 @@
       var dn = drawnOf(r);
       var notDn = unDrawnOf(r);
       var acctCell = "<td><b>" + (r.account || "默认") + "</b></td>";
-      var profitCell = notIssued
-        ? "<td class='num' style='color:var(--text-sub)'>待出票</td>"
-        : "<td class='num " + (profit >= 0 ? "profit-up" : "profit-down") + "'>" +
+      var hasPendingDraw = (notDn > 0); // 有已上传但还没抽的票
+      var profitCell;
+      if (notIssued) {
+        profitCell = "<td class='num' style='color:var(--text-sub)'>待出票</td>";
+      } else if (hasPendingDraw && !simple) {
+        // 有票上传了但还没抽：结果未定，显示"待抽奖"而不是亏损
+        profitCell = "<td class='num' style='color:var(--text-sub)'>待抽奖</td>";
+      } else {
+        profitCell = "<td class='num " + (profit >= 0 ? "profit-up" : "profit-down") + "'>" +
             (profit >= 0 ? "+" : "") + money(profit) +
             (simple ? " <span style='color:var(--text-sub);font-weight:400'>（简记）</span>" : "") +
           "</td>";
+      }
       var upCell, notUpCell, dnCell, notDnCell;
       if (notIssued) {
         upCell = "<td class='num' style='color:var(--text-sub)'>—</td>";
