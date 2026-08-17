@@ -1000,7 +1000,13 @@
     document.getElementById("editing-hint").textContent = "正在编辑 " + r.date + " " + r.city;
     document.getElementById("btn-cancel").style.display = "inline-block";
     document.getElementById("btn-save").textContent = "保存修改";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 滚动到表单位置（而不是页面顶部），并让表单整体在视野中间
+    var form = document.getElementById("form-box");
+    if (form) {
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
   function del(id) {
     var r = records.find(function (x) { return x.id === id; });
@@ -1379,7 +1385,7 @@
   }
 
   /* ---------- 初始化 ---------- */
-function renderAll() {
+  function renderAll() {
     renderStats();
     renderPending();
     renderCityStats();
