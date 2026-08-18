@@ -120,8 +120,9 @@
   .hint { font-size: 12px; color: var(--text-sub); margin-left: auto; }
   .form-note { font-size: 12px; color: var(--text-sub); margin-left: 0; margin-top: 10px; line-height: 1.6; }
 
-  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: hidden; box-shadow: var(--shadow); margin-bottom: 22px; }
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: hidden; overflow-y: auto; max-height: 65vh; box-shadow: var(--shadow); margin-bottom: 22px; -webkit-overflow-scrolling: touch; }
   .table-wrap table { width: 100%; table-layout: fixed; }
+  .table-wrap thead th { position: sticky; top: 0; z-index: 3; }
   .search-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .search-bar input {
     flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px;
@@ -132,13 +133,18 @@
   /* 点击行进入编辑 */
   tbody tr { cursor: pointer; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  thead th { background: #faf3ea; text-align: left; padding: 6px 5px; font-size: 11px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  tbody td { padding: 6px 5px; border-bottom: 1px solid #f6efe6; font-variant-numeric: tabular-nums; font-size: 12px; word-break: break-all; }
+  thead th { background: #faf3ea; text-align: left; padding: 8px 6px; font-size: 11px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  tbody td { padding: 8px 6px; border-bottom: 1px solid #f6efe6; font-variant-numeric: tabular-nums; font-size: 12px; word-break: break-all; }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover td { background: #fdf9f3; }
+  tbody tr:nth-child(even) td { background: #fcfaf7; }
+  tbody tr:nth-child(even):hover td { background: #fdf9f3; }
   td.num, th.num { text-align: right; }
   td.note-cell { color: var(--text-sub); font-size: 11px; word-break: break-all; }
-  .tag { display: inline-block; padding: 2px 5px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .actions a { color: var(--text-sub); font-size: 12px; cursor: pointer; text-decoration: none; margin-right: 14px; }
+  .actions a:hover { color: var(--red); text-decoration: underline; }
+  .actions a.del:hover { color: var(--red); }
+  .tag { display: inline-block; padding: 2px 6px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .tag-uploaded { background: #e6f6ea; color: var(--green); }
   .tag-partial { background: #fff3d6; color: var(--gold); }
   .tag-issued { background: #e8f1fa; color: var(--blue); }
@@ -271,10 +277,6 @@
       <input type="number" id="f-uploaded" min="0" step="1" placeholder="0">
     </div>
     <div class="field">
-      <label>上传时间（可选）</label>
-      <input type="time" id="f-uploadtime">
-    </div>
-    <div class="field">
       <label>已抽奖张数</label>
       <input type="number" id="f-drawn" min="0" step="1" placeholder="0">
     </div>
@@ -330,7 +332,6 @@
       <tr>
         <th>账户</th>
         <th class="col-date">日期</th>
-        <th>上传时间</th>
         <th>城市</th>
         <th class="num">购入张数</th>
         <th class="num">已上传</th>
@@ -916,13 +917,7 @@
       // 先按日期：新的在前
       var d = cmp(b, a);
       if (d !== 0) return d;
-      // 同一天：有上传时间的按时间从早到晚排，没填时间的排最后
-      var ta = (a.uploadTime || "");
-      var tb = (b.uploadTime || "");
-      if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
-      if (ta && !tb) return -1;
-      if (!ta && tb) return 1;
-      // 都没填时间：保持原来的城市排序兜底
+      // 同一天：保持原有的城市排序
       return a.city.localeCompare(b.city);
     });
     // 更新搜索提示
@@ -970,7 +965,6 @@
       }
       var note = (r.note === undefined || r.note === null || r.note === "") ? "" : String(r.note);
       var noteCell = "<td class='note-cell'>" + (note ? note : "—") + "</td>";
-      var upTimeCell = "<td style='color:var(--text-sub);font-size:12px;'>" + ((r.uploadTime) ? r.uploadTime : "—") + "</td>";
       var actionsCell = "<td class='col-actions'><span class='actions'>" +
             "<a data-edit='" + r.id + "'>编辑</a>" +
             "<a class='del' data-del='" + r.id + "'>删除</a>" +
@@ -986,7 +980,6 @@
         tr.innerHTML =
           acctCell +
           dateCell +
-          upTimeCell +
           "<td><b>" + (r.city || "未填写") + "</b></td>" +
           "<td class='num' style='color:var(--text-sub)'>—</td>" +
           "<td class='num' style='color:var(--text-sub)'>—</td>" +
@@ -1003,7 +996,6 @@
         tr.innerHTML =
           acctCell +
           dateCell +
-          upTimeCell +
           "<td><b>" + (r.city || "未填写") + "</b></td>" +
           "<td class='num'>" + fmtNum(r.count) + "</td>" +
           upCell +
@@ -1109,9 +1101,8 @@
     }
 
     var note = document.getElementById("f-note").value.trim();
-    var uploadTime = document.getElementById("f-uploadtime").value.trim();
 
-    var rec = { date: date, city: city, count: count, cost: cost, status: status, uploaded: uploaded, drawn: drawn, prize: prize, profit: profit, note: note, uploadTime: uploadTime, account: currentAccount };
+    var rec = { date: date, city: city, count: count, cost: cost, status: status, uploaded: uploaded, drawn: drawn, prize: prize, profit: profit, note: note, account: currentAccount };
     // 用户手动选了明确状态（已上传/已抽奖/部分上传/未出票）则尊重用户选择；
     // 只有默认的「已出票」才按已上传/已抽奖张数自动推断
     if (status === "已出票") {
@@ -1124,7 +1115,6 @@
     document.getElementById("f-city").value = "";
     document.getElementById("f-count").value = "";
     document.getElementById("f-uploaded").value = "";
-    document.getElementById("f-uploadtime").value = "";
     document.getElementById("f-drawn").value = "";
     document.getElementById("f-cost").value = "";
     document.getElementById("f-status").value = "已出票";
@@ -1144,7 +1134,6 @@
     document.getElementById("f-city").value = r.city;
     document.getElementById("f-count").value = r.count;
     document.getElementById("f-uploaded").value = uploadedOf(r);
-    document.getElementById("f-uploadtime").value = (r.uploadTime === undefined || r.uploadTime === null) ? "" : r.uploadTime;
     document.getElementById("f-drawn").value = drawnOf(r);
     document.getElementById("f-cost").value = r.cost;
     document.getElementById("f-status").value = r.status || "已出票";
@@ -1227,23 +1216,17 @@
     var list = visibleRecords();
     if (list.length === 0) { flash("⚠️ 暂无数据可导出"); return; }
     var sorted = list.slice().sort(function (a, b) {
-      // CSV 按日期从早到晚（旧在前），同一天按上传时间早到晚
+      // CSV 按日期从早到晚（旧在前），同一天按城市
       var d = cmp(a, b);
       if (d !== 0) return d;
-      var ta = (a.uploadTime || "");
-      var tb = (b.uploadTime || "");
-      if (ta && tb) return ta < tb ? -1 : ta > tb ? 1 : 0;
-      if (ta && !tb) return -1;
-      if (!ta && tb) return 1;
       return a.city.localeCompare(b.city);
     });
-    var lines = ["账户,日期,上传时间,城市,购入张数,已上传,未上传,已抽奖,待抽奖,购入成本,发票状态,中奖奖金,盈损(简记),利润,备注"];
+    var lines = ["账户,日期,城市,购入张数,已上传,未上传,已抽奖,待抽奖,购入成本,发票状态,中奖奖金,盈损(简记),利润,备注"];
     sorted.forEach(function (r) {
       var profit = profitOf(r).toFixed(2);
       var p = (r.profit === undefined || r.profit === null || r.profit === "") ? "" : r.profit;
       var note = (r.note === undefined || r.note === null) ? "" : String(r.note);
-      var ut = (r.uploadTime === undefined || r.uploadTime === null) ? "" : r.uploadTime;
-      lines.push([r.account || "默认", r.date, ut, r.city, r.count, uploadedOf(r), unUploadedOf(r), drawnOf(r), unDrawnOf(r), r.cost, r.status || "已出票", r.prize, p, profit, note].join(","));
+      lines.push([r.account || "默认", r.date, r.city, r.count, uploadedOf(r), unUploadedOf(r), drawnOf(r), unDrawnOf(r), r.cost, r.status || "已出票", r.prize, p, profit, note].join(","));
     });
     var blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     var a = document.createElement("a");
@@ -1635,3 +1618,4 @@
 </script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
