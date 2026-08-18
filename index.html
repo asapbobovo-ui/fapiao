@@ -120,11 +120,8 @@
   .hint { font-size: 12px; color: var(--text-sub); margin-left: auto; }
   .form-note { font-size: 12px; color: var(--text-sub); margin-left: 0; margin-top: 10px; line-height: 1.6; }
 
-  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: auto; box-shadow: var(--shadow); margin-bottom: 22px; -webkit-overflow-scrolling: touch; max-height: 60vh; }
-  .table-wrap table { min-width: 1100px; }
-  /* 表头纵向固定：垂直滚动时表头始终可见 */
-  .table-wrap thead th { position: sticky; top: 0; z-index: 5; }
-  .table-wrap tbody td { background: #fff; }
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 22px; -webkit-overflow-scrolling: touch; }
+  .table-wrap table { width: 100%; table-layout: auto; }
   .search-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .search-bar input {
     flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px;
@@ -134,18 +131,13 @@
   .search-hint { font-size: 12px; color: var(--text-sub); white-space: nowrap; }
   /* 点击行进入编辑 */
   tbody tr { cursor: pointer; }
-  /* 固定列：日期列（左）和操作列（右） */
-  th.col-date, td.col-date { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: 1px 0 0 rgba(200,180,150,0.15); }
-  thead th.col-date { background: #faf3ea; z-index: 4; }
-  th.col-actions, td.col-actions { position: sticky; right: 0; z-index: 2; background: #fff; box-shadow: -1px 0 0 rgba(200,180,150,0.15); }
-  thead th.col-actions { background: #faf3ea; z-index: 4; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  thead th { background: #faf3ea; text-align: left; padding: 10px 12px; font-size: 12px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; }
-  tbody td { padding: 10px 12px; border-bottom: 1px solid #f6efe6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: #faf3ea; text-align: left; padding: 8px 8px; font-size: 11px; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody td { padding: 8px 8px; border-bottom: 1px solid #f6efe6; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13px; }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover td { background: #fdf9f3; }
   td.num, th.num { text-align: right; }
-  td.note-cell { white-space: normal; max-width: 180px; color: var(--text-sub); font-size: 12px; }
+  td.note-cell { white-space: normal; max-width: 150px; color: var(--text-sub); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
   .tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; }
   .tag-uploaded { background: #e6f6ea; color: var(--green); }
   .tag-partial { background: #fff3d6; color: var(--gold); }
