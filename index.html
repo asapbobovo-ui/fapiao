@@ -365,7 +365,7 @@
 <div id="sync-panel" style="display:none; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow); margin-bottom:18px;">
   <div style="font-weight:700; margin-bottom:10px;">☁️ 云同步设置（JSONBin）</div>
   <div style="font-size:13px; color:var(--text-sub); margin-bottom:12px; line-height:1.6;">
-    填好下面两项并开启同步后，<b>每次保存自动上传云端，打开页面自动拉取</b>，多设备共享同一份数据。谁最后保存就以谁的为准。
+    <b>每个人有自己的独立账本</b>：填好 X-Master-Key 后点「创建我的账本」，系统自动给你开一个独立数据空间（bin ID 各不相同），你只在你自己账本里记。脚步声互不影响。多设备用同一个账本时，打开就自动同步。
   </div>
   <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; flex-wrap:wrap;">
     <div>
@@ -373,10 +373,11 @@
       <input type="text" id="sync-key" placeholder="粘贴你的 JSONBin X-Master-Key" style="width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px;">
     </div>
     <div>
-      <label style="font-size:12px; color:var(--text-sub); display:block; margin-bottom:4px;">bin ID</label>
-      <input type="text" id="sync-bin" placeholder="粘贴 bin ID（如 6a841cbeda38895dfef1f72c）" style="width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px;">
+      <label style="font-size:12px; color:var(--text-sub); display:block; margin-bottom:4px;">bin ID（我的账本）</label>
+      <input type="text" id="sync-bin" placeholder="留空则点「创建我的账本」自动生成" style="width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px;">
     </div>
-    <div style="display:flex; gap:8px; align-items:center;">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" id="btn-sync-create">✨ 创建我的账本</button>
       <button class="btn btn-secondary btn-sm" id="btn-sync-save">保存设置</button>
       <button class="btn btn-secondary btn-sm" id="btn-sync-now">立即同步</button>
     </div>
@@ -603,10 +604,14 @@
     document.getElementById("sync-key").value = syncSettings.key || "";
     document.getElementById("sync-bin").value = syncSettings.bin || "";
     var statusEl = document.getElementById("sync-status");
-    if (syncSettings.enabled && syncSettings.key && syncSettings.bin) {
-      if (statusEl) statusEl.textContent = "☁️ 云同步已开启：保存自动上传，打开自动拉取";
-    } else {
-      if (statusEl) statusEl.textContent = "☁️ 云同步未开启";
+    if (statusEl) {
+      if (syncSettings.enabled && syncSettings.key && syncSettings.bin) {
+        statusEl.textContent = "☁️ 云同步已开启：这是你的独立账本（bin " + syncSettings.bin.slice(0, 8) + "…），保存自动上传，打开自动拉取";
+      } else if (syncSettings.key && !syncSettings.bin) {
+        statusEl.textContent = "ℹ️ 已填入 Key，点「✨ 创建我的账本」生成独立账本";
+      } else {
+        statusEl.textContent = "☁️ 云同步未开启";
+      }
     }
   }
   function today() {
@@ -1553,12 +1558,52 @@
     // 立即上传当前数据到云端
     cloudPush();
   });
+  // 创建独立账本：用 Master-Key 调 JSONBin API 新建 bin，自动设为当前账本
+  document.getElementById("btn-sync-create").addEventListener("click", function () {
+    var key = document.getElementById("sync-key").value.trim();
+    if (!key) {
+      syncStatusMsg("⚠️ 请先填写 X-Master-Key", true);
+      return;
+    }
+    syncStatusMsg("✨ 正在创建你的独立账本…");
+    var payload = {
+      version: 1,
+      type: "invoice-lottery-backup",
+      updatedAt: new Date().toISOString(),
+      accounts: accounts,
+      currentAccount: currentAccount,
+      records: records
+    };
+    fetch("https://api.jsonbin.io/v3/b", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": key,
+        "X-Bin-Private": "false"
+      },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) { throw new Error("HTTP " + res.status); }
+      return res.json();
+    }).then(function (data) {
+      if (!data || !data.metadata || !data.metadata.id) { throw new Error("响应缺少 bin ID"); }
+      syncSettings.key = key;
+      syncSettings.bin = data.metadata.id;
+      syncSettings.enabled = true;
+      saveSyncSettings();
+      renderSyncPanel();
+      syncStatusMsg("✅ 你的独立账本已创建（bin " + data.metadata.id.slice(0, 8) + "…），当前数据已上传，之后保存自动同步");
+    }).catch(function (err) {
+      syncSettings.enabled = false;
+      saveSyncSettings();
+      syncStatusMsg("⚠️ 创建账本失败：" + err.message, true);
+    });
+  });
   document.getElementById("btn-sync-now").addEventListener("click", function () {
     if (!syncSettings.key || !syncSettings.bin) {
       syncStatusMsg("⚠️ 请先保存云同步设置", true);
       return;
     }
-    // 先拉取再决定？简单起见：拉取云端覆盖本地（后保存覆盖规则由用户掌握）
     syncStatusMsg("☁️ 正在从云端拉取…");
     cloudPull();
   });
@@ -1586,3 +1631,4 @@
 </script>
 </body>
 </html>
+    
