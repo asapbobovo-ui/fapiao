@@ -934,8 +934,8 @@
     sorted.forEach(function (r) {
       var profit = profitOf(r);
       var simple = isSimple(r);
-      // 还没上传（未出票 或 已出票但没传）：结果未定
-      var notIssued = (!simple && (r.status === "未出票" || unUploadedOf(r) <= 0));
+      // 还没上传（未出票，或已上传张数为0即一张都没传）：结果未定
+      var notIssued = (!simple && (r.status === "未出票" || uploadedOf(r) <= 0));
       var up = uploadedOf(r);
       var notUp = unUploadedOf(r);
       var dn = drawnOf(r);
